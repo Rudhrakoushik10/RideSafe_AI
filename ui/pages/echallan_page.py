@@ -1,4 +1,5 @@
 import streamlit as st
+from lib.simulator import PLATE_NOT_VISIBLE
 
 
 def render():
@@ -13,6 +14,8 @@ def render():
         st.rerun()
 
     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
+    is_plate_visible = record.plate_number != PLATE_NOT_VISIBLE
 
     st.markdown(
         f"""
@@ -42,6 +45,21 @@ def render():
 
     st.markdown('<div style="height:16px;"></div>', unsafe_allow_html=True)
 
+    plate_display = (
+        record.plate_number
+        if is_plate_visible
+        else '<span style="background:rgba(100,116,139,0.3);color:#94a3b8;padding:2px 8px;border-radius:4px;'
+             'border:1px solid rgba(100,116,139,0.5);font-weight:700;font-family:monospace;font-size:14px;">'
+             'PLATE NOT VISIBLE</span>'
+    )
+
+    plate_section = (
+        f'<div style="font-weight:900;font-size:16px;background:#fde047;padding:2px 8px;border-radius:4px;'
+        f'display:inline-block;margin-top:4px;">{record.plate_number}</div>'
+        if is_plate_visible
+        else plate_display
+    )
+
     st.markdown(
         f"""
         <div class="echallan-sheet">
@@ -59,9 +77,7 @@ def render():
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:11px;">
                 <div>
                     <div style="color:#64748b;">Registration Plate:</div>
-                    <div style="font-weight:900;font-size:16px;background:#fde047;padding:2px 8px;border-radius:4px;display:inline-block;margin-top:4px;">
-                        {record.plate_number}
-                    </div>
+                    {plate_section}
                 </div>
                 <div>
                     <div style="color:#64748b;">Vehicle Classification:</div>
@@ -135,11 +151,12 @@ def render():
     col_info, col_actions = st.columns([2, 1])
     with col_info:
         status_display = record.status.replace("_", " ")
+        status_color = "#34d399" if record.status in ("PAID", "VERIFIED") else "#fbbf24"
         st.markdown(
             f"""
             <div style="font-family:monospace;font-size:12px;display:flex;align-items:center;gap:8px;">
                 <span style="color:#94a3b8;">Status:</span>
-                <span style="color:#34d399;font-weight:700;display:flex;align-items:center;gap:4px;">
+                <span style="color:{status_color};font-weight:700;display:flex;align-items:center;gap:4px;">
                     <span class="dot-green pulse-anim" style="width:8px;height:8px;border-radius:50%;"></span>
                     {status_display}
                 </span>
@@ -154,5 +171,7 @@ def render():
             if st.button("Print Notice", use_container_width=True, key="print_challan"):
                 st.toast("Print dialog would open here")
         with c2:
-            if st.button("Download PDF", use_container_width=True, type="primary", key="download_challan"):
-                st.toast("PDF downloaded successfully!")
+            if st.button("Mark Paid", use_container_width=True, type="primary", key="mark_paid_challan"):
+                record.status = "PAID"
+                st.toast("Payment recorded successfully!")
+                st.rerun()

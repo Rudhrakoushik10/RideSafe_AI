@@ -386,6 +386,20 @@ def _render_analyzing_state():
     st.rerun()
 
 
+def _find_matching_violation(det, api_violations):
+    if not api_violations:
+        return None
+    for v in api_violations:
+        if v.id.replace("VIO-API-", "det-") == det.id:
+            return v
+    for v in api_violations:
+        if v.plate_number == det.plate_number:
+            return v
+    if api_violations:
+        return api_violations[0]
+    return None
+
+
 def _render_results():
     detections = st.session_state.detections
     api_violations = st.session_state.get("api_violations", [])
@@ -453,7 +467,27 @@ def _render_results():
         unsafe_allow_html=True,
     )
 
-    for idx, det in enumerate(detections):
+    min_conf = st.slider(
+        "Minimum AI Confidence",
+        min_value=50,
+        max_value=100,
+        value=50,
+        step=1,
+        key="conf_threshold_upload",
+        help="Show only detections above this confidence level",
+    )
+
+    filtered_dets = [d for d in detections if d.confidence >= min_conf]
+
+    if not filtered_dets:
+        st.markdown(
+            '<div style="padding:16px;border-radius:12px;background:#090d16;border:1px solid #182338;'
+            'font-family:monospace;font-size:12px;color:#94a3b8;text-align:center;">'
+            'No detections above the selected confidence threshold.</div>',
+            unsafe_allow_html=True,
+        )
+
+    for idx, det in enumerate(filtered_dets):
         is_vio = det.is_violating
         border_color = "rgba(239,68,68,0.5)" if is_vio else "rgba(16,185,129,0.3)"
         bg_color = "#101422" if is_vio else "#090d16"
@@ -506,13 +540,8 @@ def _render_results():
         if is_vio:
             c1, c2 = st.columns(2)
             with c1:
-                if st.button(f"Issue e-Challan", key=f"challan_{det.id}", use_container_width=True):
-                    vio_record = next((v for v in st.session_state.violations if v.id == det.id.replace("det-", "VIO-")), None)
-                    if not vio_record and api_violations:
-                        for v in api_violations:
-                            if v.plate_number == det.plate_number or (v.plate_number == PLATE_NOT_VISIBLE and det.plate_number == PLATE_NOT_VISIBLE):
-                                vio_record = v
-                                break
+                if st.button("Issue e-Challan", key=f"challan_{det.id}", use_container_width=True):
+                    vio_record = _find_matching_violation(det, api_violations)
                     if vio_record:
                         st.session_state.show_echallan = True
                         st.session_state.echallan_record = vio_record
@@ -520,12 +549,7 @@ def _render_results():
                         st.rerun()
             with c2:
                 if st.button("View in Audit", key=f"view_{det.id}", use_container_width=True):
-                    vio_record = None
-                    if api_violations:
-                        for v in api_violations:
-                            if v.plate_number == det.plate_number or (v.plate_number == PLATE_NOT_VISIBLE and det.plate_number == PLATE_NOT_VISIBLE):
-                                vio_record = v
-                                break
+                    vio_record = _find_matching_violation(det, api_violations)
                     if vio_record:
                         st.session_state.selected_violation_id = vio_record.id
                         st.session_state.active_page = "violation_detail"

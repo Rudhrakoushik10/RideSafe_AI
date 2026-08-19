@@ -67,7 +67,7 @@ def _sim_badge(record):
 
 
 def _render_pending_tab(pending_violations):
-    col_search, col_filter = st.columns([2, 3])
+    col_search, col_filter, col_conf = st.columns([2, 2, 2])
     with col_search:
         search = st.text_input(
             "Search",
@@ -83,6 +83,16 @@ def _render_pending_tab(pending_violations):
             key="pending_filter",
             format_func=lambda x: "All Types" if x == "ALL" else x.replace("_", " "),
         )
+    with col_conf:
+        min_conf = st.slider(
+            "Min Confidence",
+            min_value=50,
+            max_value=100,
+            value=50,
+            step=1,
+            key="pending_conf_threshold",
+            help="Show only violations above this confidence",
+        )
 
     filtered = pending_violations
     if search:
@@ -93,6 +103,7 @@ def _render_pending_tab(pending_violations):
             filtered = [v for v in filtered if v.type in ("NO_HELMET", "NO_HELMET_PILLION")]
         else:
             filtered = [v for v in filtered if v.type == filter_type]
+    filtered = [v for v in filtered if v.confidence >= min_conf]
 
     if not filtered:
         st.markdown(
@@ -189,17 +200,30 @@ def _render_pending_tab(pending_violations):
 
 
 def _render_active_fines_tab(active_fines):
-    search = st.text_input(
-        "Search",
-        placeholder="Search license plate, ID, or zone...",
-        label_visibility="collapsed",
-        key="fines_search",
-    )
+    col_search, col_conf = st.columns([3, 2])
+    with col_search:
+        search = st.text_input(
+            "Search",
+            placeholder="Search license plate, ID, or zone...",
+            label_visibility="collapsed",
+            key="fines_search",
+        )
+    with col_conf:
+        min_conf = st.slider(
+            "Min Confidence",
+            min_value=50,
+            max_value=100,
+            value=50,
+            step=1,
+            key="fines_conf_threshold",
+            help="Show only fines above this confidence",
+        )
 
     filtered = active_fines
     if search:
         q = search.lower()
         filtered = [v for v in filtered if q in (v.plate_number or "").lower() or q in v.violation_number.lower() or q in v.location.lower()]
+    filtered = [v for v in filtered if v.confidence >= min_conf]
 
     if not filtered:
         st.markdown(

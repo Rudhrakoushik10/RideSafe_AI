@@ -268,7 +268,9 @@ def render():
                 record.status = "CHALLAN_ISSUED"
                 if reviewer_notes:
                     record.notes = reviewer_notes
-                st.session_state.active_page = "violations"
+                st.session_state.show_echallan = True
+                st.session_state.echallan_record = record
+                st.session_state.active_page = "echallan"
                 st.rerun()
 
         c3, c4 = st.columns(2)
@@ -277,10 +279,12 @@ def render():
                 record.status = "VERIFIED"
                 if reviewer_notes:
                     record.notes = reviewer_notes
+                st.session_state.active_page = "violations"
                 st.rerun()
         with c4:
             if st.button("Dismiss", use_container_width=True, key="detail_dismiss"):
                 record.status = "DISMISSED"
                 if reviewer_notes:
                     record.notes = reviewer_notes
+                st.session_state.active_page = "violations"
                 st.rerun()
