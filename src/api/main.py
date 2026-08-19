@@ -66,6 +66,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 async def analyze_image(
     file: UploadFile = File(...),
     camera_id: str = Query(default="CAM_01"),
+    confidence_threshold: float = Query(default=0.45, ge=0.05, le=0.95),
+    mode: str = Query(default="auto"),
     db: Session = Depends(get_db),
     eng: ViolationEngine = Depends(get_engine),
 ):
@@ -80,8 +82,14 @@ async def analyze_image(
     eng.reset()
     saved_skip = eng.frame_skip
     eng.frame_skip = 1
+    eng.confidence_threshold = confidence_threshold
     violations = eng.process_frame(frame, camera_id)
     eng.frame_skip = saved_skip
+
+    if mode != "auto":
+        mode_map = {"helmet": "NO_HELMET", "redlight": "RED_LIGHT", "wrongside": "WRONG_SIDE"}
+        violations = [v for v in violations if v.violation_type == mode_map.get(mode)]
+
     results = []
     for v in violations:
         _save_violation_to_db(db, v)
@@ -101,6 +109,8 @@ async def analyze_image(
 async def analyze_video(
     file: UploadFile = File(...),
     camera_id: str = Query(default="CAM_01"),
+    confidence_threshold: float = Query(default=0.45, ge=0.05, le=0.95),
+    mode: str = Query(default="auto"),
     db: Session = Depends(get_db),
     eng: ViolationEngine = Depends(get_engine),
 ):
@@ -114,7 +124,11 @@ async def analyze_video(
         tmp_path = tmp.name
 
     try:
+        eng.confidence_threshold = confidence_threshold
         violations = eng.process_video(tmp_path, camera_id)
+        if mode != "auto":
+            mode_map = {"helmet": "NO_HELMET", "redlight": "RED_LIGHT", "wrongside": "WRONG_SIDE"}
+            violations = [v for v in violations if v.violation_type == mode_map.get(mode)]
         results = []
         for v in violations:
             _save_violation_to_db(db, v)

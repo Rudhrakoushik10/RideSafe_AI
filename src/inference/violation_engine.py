@@ -53,6 +53,18 @@ class ViolationEngine:
         self.rules = load_violation_rules().get("rules", {})
         self.frame_skip = max(1, 30 // inference_cfg.get("inference_fps", 10))
         self._frame_count = 0
+        self._confidence_threshold = inference_cfg.get("confidence_threshold", 0.45)
+
+    @property
+    def confidence_threshold(self):
+        return self._confidence_threshold
+
+    @confidence_threshold.setter
+    def confidence_threshold(self, value: float):
+        self._confidence_threshold = value
+        self.helmet_detector.settings["confidence_threshold"] = value
+        self.plate_detector.settings["confidence_threshold"] = value
+        self.traffic_light_detector.settings["confidence_threshold"] = value
 
     def configure_camera(self, camera_config: dict):
         if "road_direction" in camera_config:
