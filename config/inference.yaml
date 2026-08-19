@@ -1,0 +1,26 @@
+inference_fps: 10
+image_size: 640
+confidence_threshold: 0.45
+nms_threshold: 0.45
+device: auto
+performance_mode: BALANCED
+
+# Violation confirmation
+helmet_confirmation_frames: 3
+red_light_confirmation_frames: 3
+wrong_side_confirmation_frames: 5
+wrong_side_angle_threshold: 150
+
+# Evidence
+evidence_dir: evidence
+save_evidence: true
+
+# OCR
+ocr_enabled: true
+ocr_confidence_threshold: 0.6
+
+# Models
+models:
+  helmet: src/models/deployment/helmet/helmet_detector.onnx
+  plate: src/models/deployment/plate/plate_detector.onnx
+  traffic_light: src/models/deployment/traffic_light/traffic_light_detector.onnx

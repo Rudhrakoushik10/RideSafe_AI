@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+
+# Models (large files)
+*.pt
+*.weights
+models/training/
+training_runs/
+runs/
+
+# ONNX deployment models (small, needed for repo)
+!src/models/deployment/
+
+# YOLO weights in root
+yolo*.pt
+
+# Datasets (large files)
+datasets/
+
+# Evidence
+evidence/
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Node
+node_modules/
+.next/
+out/
+
+# Logs
+*.log
+
+# OpenCode
+.opencode/
