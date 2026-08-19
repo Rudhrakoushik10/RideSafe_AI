@@ -16,15 +16,12 @@ venv/
 # Models (large files)
 *.pt
 *.weights
-models/training/
+src/models/training/
 training_runs/
 runs/
 
 # ONNX deployment models (small, needed for repo)
 !src/models/deployment/
-
-# YOLO weights in root
-yolo*.pt
 
 # Datasets (large files)
 datasets/
@@ -55,6 +52,9 @@ out/
 # Logs
 *.log
 
-# OpenCode
+# Internal docs
+instructions/
+
+# Dev tool configs
 .opencode/
 opencode.json
