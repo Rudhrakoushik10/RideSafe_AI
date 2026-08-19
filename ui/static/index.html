@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RideSafe AI</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <span>RideSafe<span class="accent"> AI</span></span>
+        </div>
+        <div class="nav-tabs">
+            <button class="tab active" data-page="analyze">Analyze</button>
+            <button class="tab" data-page="violations">Violations</button>
+        </div>
+        <div class="status-bar">
+            <span class="dot green pulse"></span>
+            <span id="api-status">Connecting...</span>
+        </div>
+    </header>
+
+    <main id="page-analyze" class="page active">
+        <div class="upload-zone" id="drop-zone">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="1.5">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p>Drop image or video here</p>
+            <span>JPG, PNG, MP4</span>
+            <input type="file" id="file-input" accept="image/*,video/*" hidden>
+        </div>
+
+        <div class="analysis-area hidden" id="analysis-area">
+            <div class="media-panel">
+                <div class="media-container" id="media-container">
+                    <img id="preview-image" class="hidden">
+                    <video id="preview-video" class="hidden" controls></video>
+                    <canvas id="overlay-canvas"></canvas>
+                    <div class="scan-line" id="scan-line"></div>
+                </div>
+                <div class="frame-strip" id="frame-strip"></div>
+            </div>
+
+            <div class="results-panel" id="results-panel">
+                <div class="analyzing-state" id="analyzing-state">
+                    <div class="spinner"></div>
+                    <p id="analysis-status">Initializing YOLO models...</p>
+                    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+                    <div class="log-feed" id="log-feed"></div>
+                </div>
+
+                <div class="results-state hidden" id="results-state">
+                    <div class="stats-row">
+                        <div class="stat red">
+                            <span class="stat-label">Violations</span>
+                            <span class="stat-value" id="stat-violations">0</span>
+                        </div>
+                        <div class="stat green">
+                            <span class="stat-label">Compliant</span>
+                            <span class="stat-value" id="stat-compliant">0</span>
+                        </div>
+                        <div class="stat amber">
+                            <span class="stat-label">Confidence</span>
+                            <span class="stat-value" id="stat-confidence">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="detections-list" id="detections-list"></div>
+
+                    <div class="sim-notice hidden" id="sim-notice">
+                        <span class="dot amber"></span>
+                        <span>Red-light violation simulated for demo (no stop-line ROI configured)</span>
+                    </div>
+
+                    <button class="btn primary full-width" id="btn-view-violations">View All Violations</button>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn ghost" id="btn-new-file" style="display:none;">New File</button>
+    </main>
+
+    <main id="page-violations" class="page">
+        <div class="violations-header">
+            <h2>Violations</h2>
+            <div class="filters">
+                <select id="filter-type">
+                    <option value="all">All Types</option>
+                    <option value="NO_HELMET">No Helmet</option>
+                    <option value="RED_LIGHT">Red Light</option>
+                    <option value="WRONG_SIDE">Wrong Side</option>
+                </select>
+                <select id="filter-status">
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="issued">Issued</option>
+                    <option value="paid">Paid</option>
+                </select>
+            </div>
+        </div>
+        <div class="violations-table" id="violations-table">
+            <div class="empty-state">No violations recorded yet.</div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

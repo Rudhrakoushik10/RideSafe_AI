@@ -90,11 +90,37 @@ class MotorcycleDetector(Detector):
 
 
 class HelmetDetector(Detector):
+    TWO_WHEELER_CLASSES = {"with helmet", "without helmet", "helmet", "no helmet", "with_helmet", "without_helmet", "helmet_on"}
+
     def __init__(self, config: dict = None):
         super().__init__(model_type="helmet", config=config)
 
     def detect_helmets(self, frame: np.ndarray) -> list:
-        return self.detect(frame)
+        all_detections = self.detect(frame)
+        return self._filter_two_wheeler_detections(all_detections, frame)
+
+    def _filter_two_wheeler_detections(self, detections: list, frame: np.ndarray) -> list:
+        h, w = frame.shape[:2]
+        frame_area = h * w
+        filtered = []
+        for det in detections:
+            class_name = det.get("class_name", "").lower()
+            if class_name == "licence":
+                continue
+            if class_name not in self.TWO_WHEELER_CLASSES:
+                continue
+            x1, y1, x2, y2 = det["bbox"]
+            det_w = x2 - x1
+            det_h = y2 - y1
+            det_area = det_w * det_h
+            if det_area < frame_area * 0.001:
+                continue
+            if det_area > frame_area * 0.5:
+                continue
+            if det_w > det_h * 1.5:
+                continue
+            filtered.append(det)
+        return filtered
 
 
 class PlateDetector(Detector):

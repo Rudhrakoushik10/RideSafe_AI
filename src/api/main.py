@@ -1,12 +1,13 @@
 import os
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
@@ -29,8 +30,8 @@ app.add_middleware(
 
 engine_instance: Optional[ViolationEngine] = None
 
-
 EVIDENCE_DIR_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "evidence"))
+STATIC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ui", "static"))
 
 
 @app.on_event("startup")
@@ -49,6 +50,18 @@ def get_engine():
     return engine_instance
 
 
+@app.get("/", response_class=HTMLResponse)
+def serve_index():
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.isfile(index_path):
+        with open(index_path, "r") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>RideSafe AI</h1><p>Static files not found.</p>")
+
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
 @app.post("/api/analyze/image")
 async def analyze_image(
     file: UploadFile = File(...),
@@ -64,7 +77,11 @@ async def analyze_image(
     if frame is None:
         raise HTTPException(status_code=400, detail="Invalid image file")
 
+    eng.reset()
+    saved_skip = eng.frame_skip
+    eng.frame_skip = 1
     violations = eng.process_frame(frame, camera_id)
+    eng.frame_skip = saved_skip
     results = []
     for v in violations:
         _save_violation_to_db(db, v)
@@ -75,6 +92,7 @@ async def analyze_image(
             "plate_number": v.plate_number,
             "confidence": v.confidence,
             "fine_amount": v.fine_amount,
+            "bbox": v.evidence.get("metadata", {}).get("bbox") if v.evidence else None,
         })
     return {"violations": results, "count": len(results)}
 
@@ -107,6 +125,7 @@ async def analyze_video(
                 "plate_number": v.plate_number,
                 "confidence": v.confidence,
                 "fine_amount": v.fine_amount,
+                "bbox": v.evidence.get("metadata", {}).get("bbox") if v.evidence else None,
             })
         return {"violations": results, "count": len(results)}
     finally:
@@ -146,6 +165,20 @@ def get_violation_detail(violation_id: str, db: Session = Depends(get_db)):
     }
 
 
+class StatusUpdate(BaseModel):
+    status: str
+
+
+@app.patch("/api/violations/{violation_id}")
+def update_violation_status(violation_id: str, body: StatusUpdate, db: Session = Depends(get_db)):
+    violation = db.query(Violation).filter(Violation.violation_id == violation_id).first()
+    if not violation:
+        raise HTTPException(status_code=404, detail="Violation not found")
+    violation.status = body.status
+    db.commit()
+    return {"status": "updated", "violation_id": violation_id, "new_status": body.status}
+
+
 @app.get("/api/analytics")
 def get_analytics(
     days: int = Query(default=7, ge=1, le=90),
@@ -159,13 +192,6 @@ def get_analytics(
         .group_by(Violation.violation_type)
         .all()
     )
-    by_day = (
-        db.query(func.date(Violation.timestamp), func.count(Violation.id))
-        .filter(Violation.timestamp >= since)
-        .group_by(func.date(Violation.timestamp))
-        .order_by(func.date(Violation.timestamp))
-        .all()
-    )
     total_fines = (
         db.query(func.sum(Violation.fine_amount))
         .filter(Violation.timestamp >= since)
@@ -175,7 +201,6 @@ def get_analytics(
         "total_violations": total,
         "total_simulated_fines": total_fines,
         "by_type": {t: c for t, c in by_type},
-        "by_day": {str(d): c for d, c in by_day},
     }
 
 
@@ -183,48 +208,6 @@ def get_analytics(
 def get_cameras(db: Session = Depends(get_db)):
     cameras = db.query(Camera).all()
     return {"cameras": [_camera_to_dict(c) for c in cameras]}
-
-
-@app.post("/api/cameras/{camera_id}/start")
-def start_camera(camera_id: str, db: Session = Depends(get_db)):
-    camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
-    if not camera:
-        raise HTTPException(status_code=404, detail="Camera not found")
-    camera.active = True
-    db.commit()
-    return {"status": "started", "camera_id": camera_id}
-
-
-@app.post("/api/cameras/{camera_id}/stop")
-def stop_camera(camera_id: str, db: Session = Depends(get_db)):
-    camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
-    if not camera:
-        raise HTTPException(status_code=404, detail="Camera not found")
-    camera.active = False
-    db.commit()
-    return {"status": "stopped", "camera_id": camera_id}
-
-
-@app.get("/api/vehicles/{plate}")
-def get_vehicle(plate: str, db: Session = Depends(get_db)):
-    vehicle = db.query(Vehicle).filter(Vehicle.plate_number == plate).first()
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    violations = (
-        db.query(Violation)
-        .filter(Violation.plate_number == plate)
-        .order_by(desc(Violation.timestamp))
-        .all()
-    )
-    return {
-        "vehicle": {
-            "id": vehicle.id,
-            "plate_number": vehicle.plate_number,
-            "vehicle_type": vehicle.vehicle_type,
-            "created_at": vehicle.created_at.isoformat(),
-        },
-        "violations": [_violation_to_dict(v) for v in violations],
-    }
 
 
 @app.get("/api/dashboard")
@@ -243,18 +226,20 @@ def get_dashboard(db: Session = Depends(get_db)):
         .limit(10)
         .all()
     )
-    type_breakdown = (
-        db.query(Violation.violation_type, func.count(Violation.id))
-        .group_by(Violation.violation_type)
-        .all()
-    )
     return {
         "today_violations": today_count,
-        "today_simulated_fines": today_fines,
+        "today_fines": today_fines,
         "total_violations": total_count,
         "recent_violations": [_violation_to_dict(v) for v in recent],
-        "type_breakdown": {t: c for t, c in type_breakdown},
     }
+
+
+@app.get("/api/evidence/{date_str}/{violation_id}/{filename}")
+def serve_evidence(date_str: str, violation_id: str, filename: str):
+    file_path = os.path.join(EVIDENCE_DIR_PATH, date_str, violation_id, filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Evidence file not found")
+    return FileResponse(file_path)
 
 
 def _save_violation_to_db(db: Session, v):
@@ -322,14 +307,6 @@ def _evidence_to_dict(e):
         "video_timestamp": e.video_timestamp,
         "metadata_json": e.metadata_json,
     }
-
-
-@app.get("/api/evidence/{date_str}/{violation_id}/{filename}")
-def serve_evidence(date_str: str, violation_id: str, filename: str):
-    file_path = os.path.join(EVIDENCE_DIR_PATH, date_str, violation_id, filename)
-    if not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="Evidence file not found")
-    return FileResponse(file_path)
 
 
 def _camera_to_dict(c):
