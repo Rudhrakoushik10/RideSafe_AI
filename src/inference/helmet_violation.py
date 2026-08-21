@@ -5,6 +5,18 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 
+def _compute_iou(box1, box2):
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union = area1 + area2 - inter
+    return inter / union if union > 0 else 0.0
+
+
 @dataclass
 class ViolationCandidate:
     track_id: int
@@ -60,6 +72,9 @@ class HelmetViolationDetector:
                     )
                     self._update_best_frame(candidate, frame, bbox)
                     self.candidates[track_id] = candidate
+                    if candidate.frame_count >= self.confirmation_frames:
+                        candidate.confirmed = True
+                        violations.append(candidate)
             else:
                 if track_id in self.candidates:
                     del self.candidates[track_id]
@@ -88,19 +103,30 @@ class HelmetViolationDetector:
         self, rider_roi: np.ndarray, helmet_detections: list, rider_bbox: list
     ) -> bool:
         rider_x1, rider_y1, rider_x2, rider_y2 = rider_bbox
-        rider_h = rider_y2 - rider_y1
-        head_region_y2 = rider_y1 + int(rider_h * 0.35)
+        rider_cx = (rider_x1 + rider_x2) / 2
+        rider_cy = (rider_y1 + rider_y2) / 2
+
+        best_iou = 0.0
+        best_class_id = -1
 
         for det in helmet_detections:
             det_bbox = det["bbox"]
-            det_cx = (det_bbox[0] + det_bbox[2]) / 2
-            det_cy = (det_bbox[1] + det_bbox[3]) / 2
+            iou = _compute_iou(rider_bbox, det_bbox)
+            if iou > best_iou:
+                best_iou = iou
+                best_class_id = det["class_id"]
 
-            if (rider_x1 <= det_cx <= rider_x2 and
-                rider_y1 <= det_cy <= head_region_y2):
-                if det["class_name"].lower() in ["helmet", "with_helmet", "helmet_on"]:
+        if best_iou > 0.3 and best_class_id == 0:
+            return True
+
+        for det in helmet_detections:
+            det_cx = (det["bbox"][0] + det["bbox"][2]) / 2
+            det_cy = (det["bbox"][1] + det["bbox"][3]) / 2
+            if (abs(det_cx - rider_cx) < (rider_x2 - rider_x1) * 0.5 and
+                rider_y1 <= det_cy <= rider_y2):
+                if det["class_id"] == 0:
                     return True
-                elif det["class_id"] == 0:
+                if det["class_name"].lower() in ["with helmet", "helmet", "with_helmet"]:
                     return True
         return False
 

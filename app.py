@@ -78,10 +78,13 @@ def draw_boxes_on_image(frame, violations, compliant):
 def run_detection_on_frame(engine, frame, conf_threshold):
     engine.reset()
     saved_skip = engine.frame_skip
+    saved_confirm = engine.helmet_violation.confirmation_frames
     engine.frame_skip = 1
+    engine.helmet_violation.confirmation_frames = 1
     engine.confidence_threshold = conf_threshold
     violations_raw = engine.process_frame(frame)
     engine.frame_skip = saved_skip
+    engine.helmet_violation.confirmation_frames = saved_confirm
 
     all_detections = engine.get_last_detections()
     violation_ids = {v.track_id for v in violations_raw}
