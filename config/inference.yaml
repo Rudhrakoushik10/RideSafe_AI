@@ -2,7 +2,7 @@ inference_fps: 10
 image_size: 640
 confidence_threshold: 0.45
 nms_threshold: 0.45
-device: auto
+device: cpu
 performance_mode: BALANCED
 
 # Violation confirmation
