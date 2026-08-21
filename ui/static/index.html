@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RideSafe AI - Traffic Violation Detection</title>
+    <title>RideSafe AI - Helmet Detection</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -12,25 +12,27 @@
 <header>
     <div class="header-inner">
         <div class="logo">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-            </svg>
-            <span>RideSafe<span class="accent"> AI</span></span>
+            <div class="logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </div>
+            <span class="logo-text">RideSafe<span class="accent"> AI</span></span>
         </div>
-        <div class="nav-tabs">
-            <button class="tab active" data-page="analyze">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-                Analyze
+        <nav class="nav-tabs">
+            <button class="tab active" data-page="scan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 7V2h5M17 2h5v5M22 17v5h-5M7 22H2v-5"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                Scan
+            </button>
+            <button class="tab" data-page="analytics">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></svg>
+                Analytics
             </button>
             <button class="tab" data-page="violations">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Violations
             </button>
-            <button class="tab" data-page="history">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                History
-            </button>
-        </div>
+        </nav>
         <div class="status-bar">
             <span class="dot green pulse"></span>
             <span id="api-status">Connecting...</span>
@@ -38,40 +40,30 @@
     </div>
 </header>
 
-<!-- ========== PAGE: ANALYZE ========== -->
-<main id="page-analyze" class="page active">
+<!-- ========== PAGE: SCAN ========== -->
+<main id="page-scan" class="page active">
     <div class="page-header">
-        <h1>AI Vision Lab</h1>
-        <p>Automated two-wheeler violation detection: No Helmet, Red Light, Wrong Side</p>
+        <h1>Helmet Detection Scanner</h1>
+        <p>Upload an image or video to scan for two-wheeler riders without helmets</p>
     </div>
 
     <div class="settings-bar">
         <div class="setting">
-            <label>Confidence Threshold</label>
+            <label>Detection Threshold</label>
             <input type="range" id="conf-slider" min="10" max="95" value="45" step="5">
             <span id="conf-value">45%</span>
-        </div>
-        <div class="setting">
-            <label>Analysis Mode</label>
-            <select id="analysis-mode">
-                <option value="auto">Auto Detect All</option>
-                <option value="helmet">Helmet Only</option>
-                <option value="redlight">Red Light Only</option>
-                <option value="wrongside">Wrong Side Only</option>
-            </select>
         </div>
     </div>
 
     <div class="upload-zone" id="drop-zone">
         <div class="upload-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="1.5">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="1.5">
+                <path d="M14.5 4h-5L7 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2h-3l-2.5-3z"/>
+                <circle cx="12" cy="13" r="3"/>
             </svg>
         </div>
         <p>Drop image or video here</p>
-        <span>JPG, PNG, MP4, AVI &mdash; High-Resolution ANPR & Helmet Analysis</span>
+        <span>JPG, PNG, MP4, AVI &mdash; Scan for helmet violations</span>
         <input type="file" id="file-input" accept="image/*,video/*" hidden>
     </div>
 
@@ -82,7 +74,7 @@
                 <video id="preview-video" class="hidden" controls></video>
                 <canvas id="overlay-canvas"></canvas>
                 <div class="scan-line" id="scan-line"></div>
-                <div class="media-label" id="media-label">INPUT</div>
+                <div class="media-label" id="media-label">SCANNING</div>
             </div>
             <div class="frame-strip" id="frame-strip"></div>
         </div>
@@ -90,7 +82,7 @@
         <div class="results-panel" id="results-panel">
             <div class="analyzing-state" id="analyzing-state">
                 <div class="spinner"></div>
-                <p id="analysis-status">Initializing YOLO models...</p>
+                <p id="analysis-status">Initializing detection models...</p>
                 <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
                 <div class="log-feed" id="log-feed"></div>
             </div>
@@ -99,52 +91,63 @@
                 <div id="result-banner"></div>
 
                 <div class="metrics-grid" id="metrics-grid">
-                    <div class="metric-card red"><span class="metric-label">Violations</span><span class="metric-value" id="m-violations">0</span></div>
+                    <div class="metric-card blue"><span class="metric-label">Scanned</span><span class="metric-value" id="m-scanned">0</span></div>
                     <div class="metric-card green"><span class="metric-label">Compliant</span><span class="metric-value" id="m-compliant">0</span></div>
-                    <div class="metric-card red"><span class="metric-label">No Helmet</span><span class="metric-value" id="m-helmet">0</span></div>
-                    <div class="metric-card amber"><span class="metric-label">Red Light</span><span class="metric-value" id="m-redlight">0</span></div>
-                    <div class="metric-card red"><span class="metric-label">Wrong Side</span><span class="metric-value" id="m-wrongside">0</span></div>
-                    <div class="metric-card green"><span class="metric-label">Avg Confidence</span><span class="metric-value" id="m-conf">0%</span></div>
+                    <div class="metric-card red"><span class="metric-label">No Helmet</span><span class="metric-value" id="m-violations">0</span></div>
                     <div class="metric-card amber"><span class="metric-label">Total Fine</span><span class="metric-value" id="m-fine">Rs.0</span></div>
-                    <div class="metric-card green"><span class="metric-label">Safety Score</span><span class="metric-value" id="m-safety">100</span></div>
                 </div>
 
                 <div class="charts-row">
                     <div class="chart-box">
-                        <h3>Violation Distribution</h3>
-                        <canvas id="pie-chart" height="200"></canvas>
+                        <h3>Detection Breakdown</h3>
+                        <canvas id="pie-chart" height="180"></canvas>
                     </div>
                     <div class="chart-box">
-                        <h3>Safety Compliance</h3>
-                        <div class="gauge-container" id="gauge-container">
-                            <canvas id="gauge-chart" height="160"></canvas>
-                        </div>
+                        <h3>Compliance Rate</h3>
+                        <canvas id="gauge-chart" height="140"></canvas>
                     </div>
                 </div>
 
-                <div class="detections-list" id="detections-list"></div>
-
-                <div class="download-row">
-                    <button class="btn primary" id="btn-download-csv">Download CSV Report</button>
-                    <button class="btn primary" id="btn-download-image">Download Annotated Image</button>
+                <div class="detections-section">
+                    <h3 class="section-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Detected Riders
+                    </h3>
+                    <div class="detections-list" id="detections-list"></div>
                 </div>
 
-                <button class="btn ghost full-width" id="btn-view-violations">View All Violations</button>
+                <div class="download-row">
+                    <button class="btn primary" id="btn-download-csv">CSV Report</button>
+                    <button class="btn primary" id="btn-download-image">Annotated Image</button>
+                </div>
+
+                <button class="btn ghost full-width" id="btn-view-violations">View Violations List</button>
             </div>
         </div>
     </div>
 
     <button class="btn ghost" id="btn-new-file" style="display:none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New File
+        New Scan
     </button>
+</main>
+
+<!-- ========== PAGE: ANALYTICS ========== -->
+<main id="page-analytics" class="page">
+    <div class="page-header">
+        <h1>Analytics Dashboard</h1>
+        <p>Detection history and compliance statistics across all scans</p>
+    </div>
+    <div id="analytics-content">
+        <div class="empty-state">Run a scan to see analytics.</div>
+    </div>
 </main>
 
 <!-- ========== PAGE: VIOLATIONS ========== -->
 <main id="page-violations" class="page">
     <div class="page-header">
-        <h1>Violations Management</h1>
-        <p>Traffic signal infraction verification and digital e-Challan enforcement</p>
+        <h1>Violations</h1>
+        <p>Helmet violation records and enforcement actions</p>
     </div>
 
     <div class="filters-bar">
@@ -164,17 +167,6 @@
 
     <div id="violations-table">
         <div class="empty-state">No violations recorded yet.</div>
-    </div>
-</main>
-
-<!-- ========== PAGE: HISTORY ========== -->
-<main id="page-history" class="page">
-    <div class="page-header">
-        <h1>Analytics & History</h1>
-        <p>Detection history and session analytics</p>
-    </div>
-    <div id="history-content">
-        <div class="empty-state">No processed sessions yet. Upload images or videos to view history.</div>
     </div>
 </main>
 

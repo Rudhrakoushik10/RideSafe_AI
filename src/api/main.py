@@ -90,6 +90,9 @@ async def analyze_image(
         mode_map = {"helmet": "NO_HELMET", "redlight": "RED_LIGHT", "wrongside": "WRONG_SIDE"}
         violations = [v for v in violations if v.violation_type == mode_map.get(mode)]
 
+    all_detections = eng.get_last_detections()
+    violation_track_ids = {v.track_id for v in violations}
+
     results = []
     for v in violations:
         _save_violation_to_db(db, v)
@@ -102,7 +105,32 @@ async def analyze_image(
             "fine_amount": v.fine_amount,
             "bbox": v.evidence.get("metadata", {}).get("bbox") if v.evidence else None,
         })
-    return {"violations": results, "count": len(results)}
+
+    compliant = []
+    for det in all_detections:
+        if det.get("track_id") not in violation_track_ids:
+            compliant.append({
+                "track_id": det.get("track_id"),
+                "bbox": det["bbox"],
+                "confidence": round(det["confidence"] * 100),
+                "class_name": det.get("class_name", "with_helmet"),
+            })
+
+    return {
+        "violations": results,
+        "count": len(results),
+        "summary": {
+            "total_scanned": len(all_detections),
+            "compliant_count": len(compliant),
+            "violation_count": len(results),
+            "helmet_violations": sum(1 for v in results if v["violation_type"] == "NO_HELMET"),
+            "red_light_violations": sum(1 for v in results if v["violation_type"] == "RED_LIGHT"),
+            "wrong_side_violations": sum(1 for v in results if v["violation_type"] == "WRONG_SIDE"),
+            "total_fines": sum(v["fine_amount"] for v in results),
+            "avg_confidence": round(sum(v["confidence"] for v in results) / max(len(results), 1) * 100),
+        },
+        "compliant": compliant,
+    }
 
 
 @app.post("/api/analyze/video")
@@ -129,6 +157,10 @@ async def analyze_video(
         if mode != "auto":
             mode_map = {"helmet": "NO_HELMET", "redlight": "RED_LIGHT", "wrongside": "WRONG_SIDE"}
             violations = [v for v in violations if v.violation_type == mode_map.get(mode)]
+
+        all_detections = eng.get_last_detections()
+        violation_track_ids = {v.track_id for v in violations}
+
         results = []
         for v in violations:
             _save_violation_to_db(db, v)
@@ -141,7 +173,32 @@ async def analyze_video(
                 "fine_amount": v.fine_amount,
                 "bbox": v.evidence.get("metadata", {}).get("bbox") if v.evidence else None,
             })
-        return {"violations": results, "count": len(results)}
+
+        compliant = []
+        for det in all_detections:
+            if det.get("track_id") not in violation_track_ids:
+                compliant.append({
+                    "track_id": det.get("track_id"),
+                    "bbox": det["bbox"],
+                    "confidence": round(det["confidence"] * 100),
+                    "class_name": det.get("class_name", "with_helmet"),
+                })
+
+        return {
+            "violations": results,
+            "count": len(results),
+            "summary": {
+                "total_scanned": len(all_detections),
+                "compliant_count": len(compliant),
+                "violation_count": len(results),
+                "helmet_violations": sum(1 for v in results if v["violation_type"] == "NO_HELMET"),
+                "red_light_violations": sum(1 for v in results if v["violation_type"] == "RED_LIGHT"),
+                "wrong_side_violations": sum(1 for v in results if v["violation_type"] == "WRONG_SIDE"),
+                "total_fines": sum(v["fine_amount"] for v in results),
+                "avg_confidence": round(sum(v["confidence"] for v in results) / max(len(results), 1) * 100),
+            },
+            "compliant": compliant,
+        }
     finally:
         os.unlink(tmp_path)
 

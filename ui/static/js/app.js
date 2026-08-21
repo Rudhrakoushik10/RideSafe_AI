@@ -1,9 +1,10 @@
 const API = '';
 let allViolations = [];
-let detectionHistory = [];
+let scanHistory = [];
 let pieChart = null;
 let gaugeChart = null;
 let currentViolations = [];
+let currentCompliant = [];
 let currentFile = null;
 
 document.addEventListener('DOMContentLoaded', init);
@@ -39,7 +40,7 @@ function setupNavigation() {
             tab.classList.add('active');
             document.getElementById(`page-${tab.dataset.page}`).classList.add('active');
             if (tab.dataset.page === 'violations') loadViolations();
-            if (tab.dataset.page === 'history') renderHistory();
+            if (tab.dataset.page === 'analytics') renderAnalytics();
         });
     });
 }
@@ -87,6 +88,7 @@ function resetUpload() {
     const c = document.getElementById('overlay-canvas');
     c.getContext('2d').clearRect(0, 0, c.width, c.height);
     currentViolations = [];
+    currentCompliant = [];
     currentFile = null;
 }
 
@@ -108,6 +110,7 @@ function showPreview(src, isVideo) {
     const img = document.getElementById('preview-image');
     const vid = document.getElementById('preview-video');
     const canvas = document.getElementById('overlay-canvas');
+    const label = document.getElementById('media-label');
     if (isVideo) {
         vid.src = src; vid.classList.remove('hidden'); img.classList.add('hidden');
         vid.onloadedmetadata = () => { canvas.width = vid.videoWidth; canvas.height = vid.videoHeight; };
@@ -115,6 +118,8 @@ function showPreview(src, isVideo) {
         img.src = src; img.classList.remove('hidden'); vid.classList.add('hidden');
         img.onload = () => { canvas.width = img.naturalWidth; canvas.height = img.naturalHeight; };
     }
+    label.textContent = 'SCANNING';
+    label.style.color = 'var(--amber)';
 }
 
 async function runAnalysis(file, isVideo) {
@@ -124,6 +129,7 @@ async function runAnalysis(file, isVideo) {
     const logFeed = document.getElementById('log-feed');
     const progressFill = document.getElementById('progress-fill');
     const statusText = document.getElementById('analysis-status');
+    const label = document.getElementById('media-label');
 
     analyzing.classList.remove('hidden');
     results.classList.add('hidden');
@@ -131,140 +137,149 @@ async function runAnalysis(file, isVideo) {
     scanLine.classList.add('active');
 
     const conf = document.getElementById('conf-slider').value;
-    const mode = document.getElementById('analysis-mode').value;
 
     const steps = [
-        [5, 'Loading YOLOv8 detection models...', 'ok'],
-        [12, 'Loading helmet classifier (conf: ' + conf + '%)...', 'ok'],
-        [20, 'Loading license plate detector...', 'ok'],
-        [28, 'Loading traffic light classifier...', 'ok'],
-        [35, 'Reading input frames...', 'ok'],
+        [5, 'Loading YOLOv8 helmet detection model...', 'ok'],
+        [15, 'Loading license plate detector...', 'ok'],
+        [25, 'Loading traffic light classifier...', 'ok'],
+        [35, 'Initializing object tracker...', 'ok'],
+        [45, 'Reading input frames...', 'ok'],
     ];
     if (isVideo) {
-        steps.push([42, 'Extracting key frames...', 'ok']);
-        for (let i = 1; i <= 4; i++) steps.push([42 + i * 8, `Processing frame ${i}...`, 'ok']);
+        steps.push([52, 'Extracting key frames...', 'ok']);
+        for (let i = 1; i <= 4; i++) steps.push([52 + i * 7, `Processing frame ${i}...`, 'ok']);
     }
-    steps.push([isVideo ? 78 : 50, 'Running YOLO inference...', 'ok']);
-    steps.push([isVideo ? 84 : 60, 'Detecting two-wheeler riders...', 'ok']);
-    steps.push([isVideo ? 88 : 68, 'Running helmet classification...', 'ok']);
-    steps.push([isVideo ? 91 : 75, 'Running plate ANPR...', 'ok']);
-    steps.push([isVideo ? 94 : 82, 'Classifying violations...', 'ok']);
-    steps.push([isVideo ? 97 : 90, 'Generating evidence crops...', 'ok']);
+    steps.push([isVideo ? 82 : 55, 'Running YOLO inference...', 'ok']);
+    steps.push([isVideo ? 86 : 62, 'Detecting two-wheeler riders...', 'ok']);
+    steps.push([isVideo ? 89 : 70, 'Classifying helmet status...', 'ok']);
+    steps.push([isVideo ? 92 : 78, 'Running plate ANPR...', 'ok']);
+    steps.push([isVideo ? 95 : 85, 'Generating violation reports...', 'ok']);
+    steps.push([isVideo ? 98 : 92, 'Saving evidence crops...', 'ok']);
 
     for (const [pct, msg, cls] of steps) {
         progressFill.style.width = pct + '%';
         statusText.textContent = msg;
         logFeed.innerHTML += `<div class="${cls}">${msg}</div>`;
         logFeed.scrollTop = logFeed.scrollHeight;
-        await sleep(100);
+        await sleep(80);
     }
 
     try {
         const formData = new FormData();
         formData.append('file', file);
         const endpoint = isVideo ? '/api/analyze/video' : '/api/analyze/image';
-        const params = new URLSearchParams({ confidence_threshold: (conf / 100).toFixed(2), mode });
+        const params = new URLSearchParams({ confidence_threshold: (conf / 100).toFixed(2), mode: 'auto' });
         const response = await fetch(`${API}${endpoint}?${params}`, { method: 'POST', body: formData });
         const data = await response.json();
         progressFill.style.width = '100%';
-        statusText.textContent = 'Analysis complete!';
-        logFeed.innerHTML += `<div class="ok">Done — ${data.count || 0} violation(s) detected</div>`;
+        statusText.textContent = 'Scan complete!';
+        const vCount = data.count || 0;
+        const cCount = (data.compliant || []).length;
+        logFeed.innerHTML += `<div class="ok">Done - ${cCount} compliant, ${vCount} violation(s) found</div>`;
         scanLine.classList.remove('active');
+        label.textContent = vCount > 0 ? 'VIOLATIONS FOUND' : 'ALL CLEAR';
+        label.style.color = vCount > 0 ? 'var(--red)' : 'var(--green)';
         await sleep(400);
-        showResults(data.violations || [], isVideo);
+        showResults(data, isVideo);
     } catch (err) {
         progressFill.style.width = '100%';
-        statusText.textContent = 'Analysis failed';
+        statusText.textContent = 'Scan failed';
         logFeed.innerHTML += `<div class="err">Error: ${err.message}</div>`;
         scanLine.classList.remove('active');
+        label.textContent = 'ERROR';
+        label.style.color = 'var(--red)';
         await sleep(400);
-        showResults([], isVideo);
+        showResults({ violations: [], compliant: [], summary: {} }, isVideo);
     }
 }
 
-function showResults(violations, isVideo) {
+function showResults(data, isVideo) {
     document.getElementById('analyzing-state').classList.add('hidden');
     document.getElementById('results-state').classList.remove('hidden');
+
+    const violations = data.violations || [];
+    const compliant = data.compliant || [];
+    const summary = data.summary || {};
     currentViolations = violations;
+    currentCompliant = compliant;
 
-    const counts = { NO_HELMET: 0, RED_LIGHT: 0, WRONG_SIDE: 0 };
-    violations.forEach(v => { if (counts[v.violation_type] !== undefined) counts[v.violation_type]++; });
-    const total = violations.length;
-    const avgConf = total > 0 ? Math.round(violations.reduce((a, v) => a + v.confidence, 0) / total) : 0;
-    const totalFine = violations.reduce((a, v) => a + (v.fine_amount || 0), 0);
-    const safetyScore = Math.max(0, 100 - total * 15);
+    const totalScanned = summary.total_scanned || (violations.length + compliant.length);
+    const compliantCount = summary.compliant_count || compliant.length;
+    const violationCount = summary.violation_count || violations.length;
+    const helmetViolations = summary.helmet_violations || violations.filter(v => v.violation_type === 'NO_HELMET').length;
+    const totalFines = summary.total_fines || violations.reduce((a, v) => a + (v.fine_amount || 0), 0);
+    const complianceRate = totalScanned > 0 ? Math.round((compliantCount / totalScanned) * 100) : 100;
 
-    document.getElementById('m-violations').textContent = total;
-    document.getElementById('m-compliant').textContent = Math.max(0, (isVideo ? 4 : 1) - total);
-    document.getElementById('m-helmet').textContent = counts.NO_HELMET;
-    document.getElementById('m-redlight').textContent = counts.RED_LIGHT;
-    document.getElementById('m-wrongside').textContent = counts.WRONG_SIDE;
-    document.getElementById('m-conf').textContent = avgConf + '%';
-    document.getElementById('m-fine').textContent = 'Rs.' + totalFine.toLocaleString();
-    document.getElementById('m-safety').textContent = safetyScore;
+    document.getElementById('m-scanned').textContent = totalScanned;
+    document.getElementById('m-compliant').textContent = compliantCount;
+    document.getElementById('m-violations').textContent = violationCount;
+    document.getElementById('m-fine').textContent = 'Rs.' + totalFines.toLocaleString();
 
     const banner = document.getElementById('result-banner');
-    if (total > 0) {
+    if (violationCount > 0) {
         banner.innerHTML = `<div class="violation-banner danger">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <b>VIOLATIONS DETECTED</b> — ${total} infraction(s) found. ${totalFine > 0 ? 'Total assessed fine: Rs.' + totalFine.toLocaleString() : ''}
+            <b>${violationCount} RIDER(S) WITHOUT HELMET</b> - ${helmetViolations > 0 ? helmetViolations + ' helmet violation(s)' : ''} Total fine: Rs.${totalFines.toLocaleString()}
         </div>`;
     } else {
         banner.innerHTML = `<div class="violation-banner safe">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <b>MONITORED AREA SAFE</b> — All detected two-wheelers are compliant with traffic regulations.
+            <b>ALL RIDERS COMPLIANT</b> - ${compliantCount} rider(s) detected wearing helmets.
         </div>`;
     }
 
-    renderPieChart(counts);
-    renderGauge(safetyScore);
-    renderDetections(violations);
-    drawBoxes(violations);
+    renderPieChart(violations, compliant);
+    renderGauge(complianceRate);
+    renderDetections(violations, compliant);
+    drawBoxes(violations, compliant);
     generateFrameStrip();
 
-    detectionHistory.push({
+    scanHistory.push({
         time: new Date().toLocaleTimeString(),
         date: new Date().toLocaleDateString(),
-        violations: total,
-        helmet: counts.NO_HELMET,
-        redlight: counts.RED_LIGHT,
-        wrongside: counts.WRONG_SIDE,
-        fine: totalFine,
-        safety: safetyScore,
-        avgConf: avgConf,
+        scanned: totalScanned,
+        compliant: compliantCount,
+        violations: violationCount,
+        helmet: helmetViolations,
+        fine: totalFines,
+        compliance: complianceRate,
     });
 }
 
-function renderPieChart(counts) {
+function renderPieChart(violations, compliant) {
     const ctx = document.getElementById('pie-chart').getContext('2d');
     if (pieChart) pieChart.destroy();
     const labels = [];
     const data = [];
     const colors = [];
-    if (counts.NO_HELMET > 0) { labels.push('No Helmet'); data.push(counts.NO_HELMET); colors.push('#ef4444'); }
-    if (counts.RED_LIGHT > 0) { labels.push('Red Light'); data.push(counts.RED_LIGHT); colors.push('#f59e0b'); }
-    if (counts.WRONG_SIDE > 0) { labels.push('Wrong Side'); data.push(counts.WRONG_SIDE); colors.push('#f97316'); }
-    if (data.length === 0) { labels.push('No Violations'); data.push(1); colors.push('#10b981'); }
+    if (compliant.length > 0) { labels.push('With Helmet'); data.push(compliant.length); colors.push('#10b981'); }
+    const vTypes = {};
+    violations.forEach(v => { vTypes[v.violation_type] = (vTypes[v.violation_type] || 0) + 1; });
+    if (vTypes.NO_HELMET) { labels.push('No Helmet'); data.push(vTypes.NO_HELMET); colors.push('#ef4444'); }
+    if (vTypes.RED_LIGHT) { labels.push('Red Light'); data.push(vTypes.RED_LIGHT); colors.push('#f59e0b'); }
+    if (vTypes.WRONG_SIDE) { labels.push('Wrong Side'); data.push(vTypes.WRONG_SIDE); colors.push('#f97316'); }
+    if (data.length === 0) { labels.push('No Detections'); data.push(1); colors.push('#334155'); }
     pieChart = new Chart(ctx, {
         type: 'doughnut',
-        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 8 }] },
         options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'monospace', size: 11 } } } },
-            cutout: '65%',
+            responsive: true, cutout: '60%',
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'monospace', size: 10 }, padding: 12 } },
+            },
         }
     });
 }
 
-function renderGauge(score) {
+function renderGauge(rate) {
     const ctx = document.getElementById('gauge-chart').getContext('2d');
     if (gaugeChart) gaugeChart.destroy();
-    const color = score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444';
+    const color = rate >= 80 ? '#10b981' : rate >= 50 ? '#f59e0b' : '#ef4444';
     gaugeChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Safety', 'Risk'],
-            datasets: [{ data: [score, 100 - score], backgroundColor: [color, '#1e293b'], borderWidth: 0 }]
+            labels: ['Compliant', 'Non-Compliant'],
+            datasets: [{ data: [rate, 100 - rate], backgroundColor: [color, '#1e293b'], borderWidth: 0 }]
         },
         options: {
             responsive: true, rotation: -90, circumference: 180,
@@ -274,77 +289,107 @@ function renderGauge(score) {
         plugins: [{
             id: 'gaugeText',
             afterDraw(chart) {
-                const { ctx, width, height } = chart;
-                ctx.save();
-                ctx.font = 'bold 28px monospace';
-                ctx.fillStyle = color;
-                ctx.textAlign = 'center';
-                ctx.fillText(score, width / 2, height / 2 + 10);
-                ctx.font = '10px monospace';
-                ctx.fillStyle = '#64748b';
-                ctx.fillText('SAFETY SCORE', width / 2, height / 2 + 28);
-                ctx.restore();
+                const { ctx: c, width, height } = chart;
+                c.save();
+                c.font = 'bold 32px monospace';
+                c.fillStyle = color;
+                c.textAlign = 'center';
+                c.fillText(rate + '%', width / 2, height / 2 + 10);
+                c.font = '10px monospace';
+                c.fillStyle = '#64748b';
+                c.fillText('COMPLIANCE RATE', width / 2, height / 2 + 28);
+                c.restore();
             }
         }]
     });
 }
 
-function renderDetections(violations) {
+function renderDetections(violations, compliant) {
     const list = document.getElementById('detections-list');
-    if (!violations.length) {
-        list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">No violations detected</div>';
-        return;
+    let html = '';
+    if (violations.length > 0) {
+        violations.forEach(v => {
+            const type = v.violation_type.replace(/_/g, ' ');
+            html += `<div class="detection-card violation">
+                <div class="detection-header">
+                    <span class="detection-type violation">${type}</span>
+                    <span class="badge red">${v.confidence}%</span>
+                </div>
+                <div class="detection-detail"><span>Plate</span><span class="val">${v.plate_number || 'NOT VISIBLE'}</span></div>
+                <div class="detection-detail"><span>Fine</span><span class="val" style="color:var(--red)">Rs.${(v.fine_amount||0).toLocaleString()}</span></div>
+            </div>`;
+        });
     }
-    list.innerHTML = violations.map(v => {
-        const type = v.violation_type.replace(/_/g, ' ');
-        const isSim = v.violation_type === 'RED_LIGHT';
-        return `<div class="detection-card violation">
-            <div class="detection-header">
-                <span class="detection-type violation">${type}</span>
-                <span class="badge red">${v.confidence}%</span>
-            </div>
-            <div class="detection-detail"><span>Plate</span><span class="val">${v.plate_number || 'NOT VISIBLE'}</span></div>
-            <div class="detection-detail"><span>Fine</span><span class="val" style="color:var(--red)">Rs.${(v.fine_amount||0).toLocaleString()}</span></div>
-            ${isSim ? '<span class="badge amber" style="margin-top:6px">SIMULATED</span>' : ''}
-        </div>`;
-    }).join('');
+    if (compliant.length > 0) {
+        compliant.forEach(c => {
+            html += `<div class="detection-card safe">
+                <div class="detection-header">
+                    <span class="detection-type safe">WITH HELMET</span>
+                    <span class="badge green">${c.confidence}%</span>
+                </div>
+                <div class="detection-detail"><span>Status</span><span class="val" style="color:var(--green)">Compliant</span></div>
+            </div>`;
+        });
+    }
+    if (!html) {
+        html = '<div style="text-align:center;padding:20px;color:var(--muted)">No riders detected</div>';
+    }
+    list.innerHTML = html;
 }
 
-function drawBoxes(violations) {
+function drawBoxes(violations, compliant) {
     const canvas = document.getElementById('overlay-canvas');
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!violations.length || !canvas.width) return;
+    if (!canvas.width) return;
 
-    const colors = { NO_HELMET: '#ef4444', RED_LIGHT: '#f59e0b', WRONG_SIDE: '#f97316' };
-    const hasBbox = violations.some(v => v.bbox && v.bbox.length === 4);
+    const allBboxes = [...(violations || []).map(v => ({ ...v, _type: 'violation' })),
+                       ...(compliant || []).map(c => ({ ...c, _type: 'compliant' }))];
+    if (!allBboxes.length) return;
 
-    violations.forEach((v, i) => {
+    const hasBbox = allBboxes.some(d => d.bbox && d.bbox.length === 4);
+
+    allBboxes.forEach((d, i) => {
         let bx, by, bw, bh;
-        if (hasBbox && v.bbox) {
-            [bx, by, bw, bh] = [v.bbox[0], v.bbox[1], v.bbox[2] - v.bbox[0], v.bbox[3] - v.bbox[1]];
+        if (hasBbox && d.bbox) {
+            [bx, by, bw, bh] = [d.bbox[0], d.bbox[1], d.bbox[2] - d.bbox[0], d.bbox[3] - d.bbox[1]];
         } else {
-            bx = Math.round((0.1 + (i % 3) * 0.3) * canvas.width);
-            by = Math.round((0.15 + Math.floor(i / 3) * 0.4) * canvas.height);
-            bw = Math.round(0.2 * canvas.width);
-            bh = Math.round(0.55 * canvas.height);
+            bx = Math.round((0.08 + (i % 4) * 0.22) * canvas.width);
+            by = Math.round((0.12 + Math.floor(i / 4) * 0.45) * canvas.height);
+            bw = Math.round(0.18 * canvas.width);
+            bh = Math.round(0.6 * canvas.height);
         }
 
-        const color = colors[v.violation_type] || '#ef4444';
-        ctx.strokeStyle = color; ctx.lineWidth = 3;
-        ctx.strokeRect(bx, by, bw, bh);
+        const isViolation = d._type === 'violation';
+        const color = isViolation ? '#ef4444' : '#10b981';
+        const alpha = isViolation ? 0.9 : 0.5;
+        const lineWidth = isViolation ? 3 : 2;
 
-        const label = v.violation_type.replace(/_/g, ' ');
-        ctx.font = 'bold 14px monospace';
-        const tw = ctx.measureText(label).width + 16;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.setLineDash(isViolation ? [] : [6, 4]);
+        ctx.strokeRect(bx, by, bw, bh);
+        ctx.setLineDash([]);
+
+        if (isViolation) {
+            ctx.fillStyle = 'rgba(239,68,68,.08)';
+            ctx.fillRect(bx, by, bw, bh);
+        }
+
+        const label = isViolation ? 'NO HELMET' : 'HELMET OK';
+        ctx.font = 'bold 12px monospace';
+        const tw = ctx.measureText(label).width + 14;
+
         ctx.fillStyle = color;
-        ctx.fillRect(bx, by - 22, tw, 22);
-        ctx.fillStyle = '#000'; ctx.fillText(label, bx + 8, by - 5);
+        ctx.fillRect(bx, by - 20, tw, 20);
+        ctx.fillStyle = isViolation ? '#fff' : '#000';
+        ctx.fillText(label, bx + 7, by - 6);
 
         ctx.fillStyle = 'rgba(0,0,0,.75)';
-        ctx.fillRect(bx, by + bh - 20, tw, 20);
-        ctx.fillStyle = '#10b981'; ctx.font = 'bold 11px monospace';
-        ctx.fillText(v.confidence + '%', bx + 8, by + bh - 5);
+        ctx.fillRect(bx, by + bh - 18, tw, 18);
+        ctx.fillStyle = color;
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText((d.confidence || 0) + '%', bx + 7, by + bh - 5);
     });
 }
 
@@ -365,16 +410,16 @@ function generateFrameStrip() {
 }
 
 function downloadCSV() {
-    if (!currentViolations.length) return;
-    const headers = ['Violation ID', 'Type', 'Plate', 'Confidence', 'Fine'];
-    const rows = currentViolations.map(v => [
-        v.violation_id || '', v.violation_type, v.plate_number || 'NOT VISIBLE', v.confidence, v.fine_amount || 0
-    ]);
+    if (!currentViolations.length && !currentCompliant.length) return;
+    const headers = ['Type', 'Track ID', 'Plate', 'Confidence', 'Fine'];
+    const rows = [];
+    currentViolations.forEach(v => rows.push(['VIOLATION', v.track_id || '', v.plate_number || 'NOT VISIBLE', v.confidence + '%', v.fine_amount || 0]));
+    currentCompliant.forEach(c => rows.push(['COMPLIANT', c.track_id || '', '-', c.confidence + '%', 0]));
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `ridesafe_report_${Date.now()}.csv`;
+    a.download = `ridesafe_scan_${Date.now()}.csv`;
     a.click();
 }
 
@@ -438,24 +483,46 @@ async function updateStatus(id, status) {
     loadViolations();
 }
 
-function renderHistory() {
-    const c = document.getElementById('history-content');
-    if (!detectionHistory.length) {
-        c.innerHTML = '<div class="empty-state">No processed sessions yet. Upload images or videos to view history.</div>';
+function renderAnalytics() {
+    const c = document.getElementById('analytics-content');
+    if (!scanHistory.length) {
+        c.innerHTML = '<div class="empty-state">Run a scan to see analytics.</div>';
         return;
     }
-    c.innerHTML = `<div class="history-grid">${detectionHistory.map((h, i) => `
-        <div class="history-card">
-            <h3>Session #${i + 1}</h3>
-            <div class="meta">
-                <span><b>Time:</b> ${h.date} ${h.time}</span>
-                <span><b>Violations:</b> <span style="color:var(--red)">${h.violations}</span></span>
-                <span><b>No Helmet:</b> ${h.helmet} | <b>Red Light:</b> ${h.redlight} | <b>Wrong Side:</b> ${h.wrongside}</span>
-                <span><b>Total Fine:</b> <span style="color:var(--red)">Rs.${h.fine.toLocaleString()}</span></span>
-                <span><b>Safety Score:</b> <span style="color:${h.safety >= 70 ? 'var(--green)' : h.safety >= 40 ? 'var(--amber)' : 'var(--red)'}">${h.safety}</span></span>
-                <span><b>Avg Confidence:</b> ${h.avgConf}%</span>
+
+    const totalScanned = scanHistory.reduce((a, s) => a + s.scanned, 0);
+    const totalViolations = scanHistory.reduce((a, s) => a + s.violations, 0);
+    const totalCompliant = scanHistory.reduce((a, s) => a + s.compliant, 0);
+    const totalFines = scanHistory.reduce((a, s) => a + s.fine, 0);
+    const avgCompliance = Math.round(scanHistory.reduce((a, s) => a + s.compliance, 0) / scanHistory.length);
+    const totalScans = scanHistory.length;
+
+    c.innerHTML = `
+        <div class="analytics-highlight">${avgCompliance}%</div>
+        <p style="text-align:center;color:var(--muted);margin-bottom:20px;font-size:12px">Average Compliance Rate Across ${totalScans} Scan(s)</p>
+        <div class="metrics-grid">
+            <div class="metric-card blue"><span class="metric-label">Total Scans</span><span class="metric-value">${totalScans}</span></div>
+            <div class="metric-card blue"><span class="metric-label">Riders Scanned</span><span class="metric-value">${totalScanned}</span></div>
+            <div class="metric-card green"><span class="metric-label">Compliant</span><span class="metric-value">${totalCompliant}</span></div>
+            <div class="metric-card red"><span class="metric-label">Violations</span><span class="metric-value">${totalViolations}</span></div>
+        </div>
+        <div class="analytics-grid">
+            <div class="analytics-card">
+                <h3>Session History</h3>
+                <div class="meta">
+                    ${scanHistory.map((s, i) => `<span><b>#${i+1}</b> ${s.date} ${s.time} - <span style="color:${s.compliance >= 80 ? 'var(--green)' : 'var(--red)'}">${s.compliance}% compliance, ${s.violations} violations</span></span>`).join('')}
+                </div>
             </div>
-        </div>`).join('')}</div>`;
+            <div class="analytics-card">
+                <h3>Summary</h3>
+                <div class="meta">
+                    <span><b>Total Fines Assessed:</b> <span style="color:var(--red)">Rs.${totalFines.toLocaleString()}</span></span>
+                    <span><b>Average Compliance:</b> <span style="color:${avgCompliance >= 80 ? 'var(--green)' : 'var(--red)'}">${avgCompliance}%</span></span>
+                    <span><b>Violation Rate:</b> ${totalScanned > 0 ? Math.round(totalViolations / totalScanned * 100) : 0}%</span>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

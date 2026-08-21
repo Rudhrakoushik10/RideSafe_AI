@@ -9,10 +9,11 @@
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.5}
 
-/* HEADER */
 header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
 .header-inner{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;max-width:1600px;margin:0 auto}
-.logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;letter-spacing:-.5px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{color:var(--green);display:flex}
+.logo-text{font-size:18px;font-weight:800;letter-spacing:-.5px}
 .accent{color:var(--green)}
 .nav-tabs{display:flex;gap:4px}
 .tab{
@@ -24,11 +25,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);position:
 .tab.active{color:var(--green);border-color:var(--border);background:var(--bg)}
 .status-bar{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
-.dot.green{background:var(--green)}.dot.red{background:var(--red)}.dot.amber{background:var(--amber)}
+.dot.green{background:var(--green)}.dot.red{background:var(--red)}
 .pulse{animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-/* PAGES */
 main{display:none;padding:24px;max-width:1600px;margin:0 auto}
 main.active{display:block}
 .hidden{display:none!important}
@@ -37,7 +37,6 @@ main.active{display:block}
 .page-header h1{font-size:20px;font-weight:900;letter-spacing:-.3px}
 .page-header p{font-size:12px;color:var(--muted);margin-top:4px}
 
-/* SETTINGS BAR */
 .settings-bar{
   display:flex;gap:20px;padding:12px 20px;margin-bottom:16px;
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
@@ -53,12 +52,7 @@ main.active{display:block}
   background:var(--green);cursor:pointer;border:2px solid var(--bg);
 }
 .setting span{font-size:12px;font-weight:700;color:var(--green);min-width:36px}
-.setting select{
-  background:var(--bg);border:1px solid var(--border);color:var(--text);
-  padding:5px 10px;border-radius:6px;font:inherit;font-size:11px;cursor:pointer;
-}
 
-/* UPLOAD */
 .upload-zone{
   border:2px dashed var(--border);border-radius:12px;
   padding:60px 40px;text-align:center;cursor:pointer;
@@ -66,12 +60,12 @@ main.active{display:block}
   display:flex;flex-direction:column;align-items:center;gap:12px;
 }
 .upload-zone:hover,.upload-zone.dragover{border-color:var(--green);background:var(--green-bg)}
-.upload-icon{opacity:.6}
+.upload-icon{opacity:.5;transition:opacity .2s}
+.upload-zone:hover .upload-icon{opacity:.8}
 .upload-zone p{font-size:15px;font-weight:700;color:var(--text)}
 .upload-zone span{font-size:11px;color:var(--muted)}
 
-/* ANALYSIS AREA */
-.analysis-area{display:grid;grid-template-columns:1fr 400px;gap:20px}
+.analysis-area{display:grid;grid-template-columns:1fr 420px;gap:20px}
 .media-panel{display:flex;flex-direction:column;gap:12px}
 .media-container{
   position:relative;background:#000;border-radius:var(--radius);
@@ -106,14 +100,12 @@ main.active{display:block}
   font-size:8px;padding:1px 4px;border-radius:2px;font-weight:700;
 }
 
-/* RESULTS PANEL */
 .results-panel{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);padding:20px;
   max-height:calc(100vh - 140px);overflow-y:auto;
 }
 
-/* ANALYZING STATE */
 .analyzing-state{text-align:center;padding:20px 0}
 .spinner{
   width:36px;height:36px;border:2px solid var(--border);
@@ -128,7 +120,6 @@ main.active{display:block}
 .log-feed div{padding:2px 0;border-bottom:1px solid rgba(30,41,59,.3)}
 .log-feed .ok{color:var(--green)}.log-feed .warn{color:var(--amber)}.log-feed .err{color:var(--red)}
 
-/* BANNERS */
 .violation-banner{
   padding:12px 16px;border-radius:8px;font-weight:600;font-size:12px;
   margin-bottom:16px;display:flex;align-items:center;gap:10px;
@@ -136,39 +127,43 @@ main.active{display:block}
 .violation-banner.danger{background:rgba(127,29,29,.6);border:1px solid var(--red);color:#fca5a5}
 .violation-banner.safe{background:rgba(6,78,59,.6);border:1px solid var(--green);color:#6ee7b7}
 
-/* METRIC CARDS */
 .metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
 .metric-card{
   padding:14px;border-radius:var(--radius);text-align:center;
   border:1px solid var(--border);background:var(--surface2);
-  box-shadow:0 2px 4px rgba(0,0,0,.2);
+  box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .15s,box-shadow .15s;
 }
+.metric-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
 .metric-card.red{border-color:var(--red-border);background:var(--red-bg)}
 .metric-card.green{border-color:var(--green-border);background:var(--green-bg)}
 .metric-card.amber{border-color:var(--amber-border);background:var(--amber-bg)}
+.metric-card.blue{border-color:rgba(59,130,246,.25);background:var(--blue-bg)}
 .metric-label{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .metric-value{display:block;font-size:22px;font-weight:800}
 .metric-card.red .metric-value{color:var(--red)}
 .metric-card.green .metric-value{color:var(--green)}
 .metric-card.amber .metric-value{color:var(--amber)}
+.metric-card.blue .metric-value{color:var(--blue)}
 
-/* CHARTS */
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .chart-box{
   background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
   padding:16px;
 }
 .chart-box h3{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;font-weight:600}
-.gauge-container{display:flex;justify-content:center;align-items:center}
 
-/* DETECTION CARDS */
+.section-title{
+  font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:10px;font-weight:600;display:flex;align-items:center;gap:6px;
+}
+
 .detection-card{
   padding:12px;border:1px solid var(--border);border-radius:var(--radius);
-  margin-bottom:8px;transition:border-color .15s;background:var(--surface2);
+  margin-bottom:8px;transition:all .15s;background:var(--surface2);
 }
-.detection-card:hover{border-color:var(--border-light)}
-.detection-card.violation{border-left:3px solid var(--red)}
-.detection-card.safe{border-left:3px solid var(--green)}
+.detection-card:hover{border-color:var(--border-light);transform:translateX(2px)}
+.detection-card.violation{border-left:3px solid var(--red);background:var(--red-bg)}
+.detection-card.safe{border-left:3px solid var(--green);background:var(--green-bg)}
 .detection-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .detection-type{font-size:11px;font-weight:700}
 .detection-type.violation{color:var(--red)}
@@ -183,7 +178,6 @@ main.active{display:block}
 .detection-detail{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:2px 0}
 .detection-detail .val{color:var(--text);font-weight:600}
 
-/* BUTTONS */
 .btn{
   padding:8px 16px;border-radius:6px;font:inherit;font-size:12px;font-weight:600;
   cursor:pointer;border:1px solid var(--border);transition:all .15s;
@@ -198,7 +192,6 @@ main.active{display:block}
 .full-width{width:100%}
 .download-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
 
-/* VIOLATIONS PAGE */
 .filters-bar{display:flex;gap:8px;margin-bottom:16px}
 .filters-bar select{
   background:var(--surface);border:1px solid var(--border);color:var(--text);
@@ -214,7 +207,20 @@ tr:hover td{background:rgba(17,24,39,.5)}
 .action-btns{display:flex;gap:4px}
 .action-btns .btn{padding:4px 10px;font-size:10px}
 
-/* HISTORY PAGE */
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.analytics-card{
+  padding:16px;border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);
+}
+.analytics-card h3{font-size:12px;font-weight:700;margin-bottom:8px}
+.analytics-card .meta{font-size:10px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.analytics-card .meta span{display:flex;justify-content:space-between}
+.analytics-highlight{
+  font-size:36px;font-weight:900;text-align:center;padding:20px 0;
+  background:linear-gradient(135deg,var(--green),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
 .history-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .history-card{
   padding:16px;border:1px solid var(--border);border-radius:var(--radius);
@@ -230,6 +236,7 @@ tr:hover td{background:rgba(17,24,39,.5)}
   .results-panel{max-height:none}
   .metrics-grid{grid-template-columns:repeat(2,1fr)}
   .charts-row{grid-template-columns:1fr}
+  .analytics-grid{grid-template-columns:1fr}
 }
 @media(max-width:600px){
   .header-inner{flex-wrap:wrap;gap:8px}

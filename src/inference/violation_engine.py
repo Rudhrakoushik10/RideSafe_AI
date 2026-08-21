@@ -54,6 +54,7 @@ class ViolationEngine:
         self.frame_skip = max(1, 30 // inference_cfg.get("inference_fps", 10))
         self._frame_count = 0
         self._confidence_threshold = inference_cfg.get("confidence_threshold", 0.45)
+        self._last_detections = []
 
     @property
     def confidence_threshold(self):
@@ -86,6 +87,12 @@ class ViolationEngine:
         light_detections = self.traffic_light_detector.detect_traffic_lights(frame)
 
         tracked_objects = self.tracker.update(helmet_detections, frame)
+
+        for obj in tracked_objects:
+            obj["frame_w"] = frame.shape[1]
+            obj["frame_h"] = frame.shape[0]
+
+        self._last_detections = tracked_objects
 
         helmet_violations = self.helmet_violation.process_frame(
             frame, tracked_objects, helmet_detections
@@ -158,6 +165,10 @@ class ViolationEngine:
         self.redlight_violation.reset()
         self.wrong_side_violation.reset()
         self._frame_count = 0
+        self._last_detections = []
+
+    def get_last_detections(self) -> list:
+        return self._last_detections
 
     def process_image(self, image_path: str, camera_id: str = "CAM_01") -> list:
         frame = cv2.imread(image_path)
