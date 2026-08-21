@@ -3,6 +3,9 @@ import numpy as np
 from pathlib import Path
 from typing import Optional
 
+import os
+os.environ["ULTRALYTICS_NO_AUTOINSTALL"] = "1"
+
 try:
     import onnxruntime as ort
     ONNX_AVAILABLE = True
@@ -20,20 +23,20 @@ class Detector:
         self.model_type = model_type
         self.settings = get_inference_settings(self.config)
         self.model = None
-        self.device = get_device(self.config)
+        self.device = "cpu"
         self._load_model()
 
     def _load_model(self):
         try:
             model_path = get_model_path(self.model_type, self.config)
             if model_path.endswith(".onnx") and ONNX_AVAILABLE:
-                self.model = YOLO(model_path)
+                self.model = YOLO(model_path, task="detect")
             else:
                 pt_path = model_path.replace(".onnx", ".pt")
                 if Path(pt_path).exists():
-                    self.model = YOLO(pt_path)
+                    self.model = YOLO(pt_path, task="detect")
                 else:
-                    self.model = YOLO(model_path)
+                    self.model = YOLO(model_path, task="detect")
         except (FileNotFoundError, ValueError):
             self.model = None
 
@@ -47,14 +50,13 @@ class Detector:
             return []
         conf = conf_threshold or self.settings["confidence_threshold"]
         imgsz = self.settings["image_size"]
-        device = self.device
 
         try:
             results = self.model.predict(
                 source=frame,
                 conf=conf,
                 imgsz=imgsz,
-                device=device if device != "auto" else None,
+                device="cpu",
                 classes=classes,
                 verbose=False,
             )
