@@ -1,60 +1,25 @@
-# Python
 __pycache__/
 *.py[cod]
 *.so
-*.egg-info/
-dist/
-build/
-*.egg
 .venv/
 venv/
-
-# Environment
 .env
-.env.local
-
-# Models (large files)
+*.db
+*.sqlite3
 *.pt
 *.weights
 src/models/training/
 training_runs/
 runs/
-
-# ONNX deployment models (small, needed for repo)
-!src/models/deployment/
-
-# Datasets (large files)
 datasets/
-
-# Evidence
 evidence/
-
-# Database
-*.db
-*.sqlite3
-
-# IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-
-# OS
 Thumbs.db
 .DS_Store
-Desktop.ini
-
-# Node
 node_modules/
-.next/
-out/
-
-# Logs
 *.log
-
-# Internal docs
-instructions/
-
-# Dev tool configs
 .opencode/
 opencode.json
+instructions/

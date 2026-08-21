@@ -27,8 +27,22 @@ class EvidenceGenerator:
         camera_id: str = "CAM_01",
         timestamp: Optional[str] = None,
     ) -> Optional[dict]:
+        violation_id = f"violation_{uuid.uuid4().hex[:8]}"
+
         if not self.save_evidence:
-            return {"violation_id": str(uuid.uuid4())}
+            return {
+                "violation_id": violation_id,
+                "metadata": {
+                    "violation_id": violation_id,
+                    "violation_type": violation_type,
+                    "track_id": track_id,
+                    "plate_number": plate_number,
+                    "confidence": confidence,
+                    "camera_id": camera_id,
+                    "timestamp": timestamp or datetime.now().isoformat(),
+                    "bbox": bbox,
+                },
+            }
 
         violation_id = f"violation_{uuid.uuid4().hex[:8]}"
         date_str = datetime.now().strftime("%Y-%m-%d")
