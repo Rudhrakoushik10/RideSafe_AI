@@ -3,10 +3,6 @@
     "camera_id": "CAM_01",
     "name": "Main Junction Camera",
     "location": "Main Road Junction",
-    "road_direction": [1, 0],
-    "stop_line": [[100, 400], [900, 400]],
-    "traffic_light_roi": [50, 20, 100, 150],
-    "detection_region": null,
     "active": true
   }
 ]

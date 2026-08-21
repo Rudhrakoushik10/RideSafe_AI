@@ -3,11 +3,3 @@ rules:
     fine_amount: 1000
     active: true
     description: "Riding two-wheeler without helmet"
-  RED_LIGHT:
-    fine_amount: 1000
-    active: true
-    description: "Crossing stop line during red light"
-  WRONG_SIDE:
-    fine_amount: 1000
-    active: true
-    description: "Riding in wrong direction"

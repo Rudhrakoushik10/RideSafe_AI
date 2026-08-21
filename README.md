@@ -23,11 +23,11 @@ Open http://localhost:8501 in your browser.
 
 - **Helmet Detection** -- YOLOv8 classifies riders with/without helmet
 - **Smart Bounding Boxes** -- Green boxes on compliant riders, red boxes on violators
-- **License Plate Recognition** -- ONNX-powered ANPR with PaddleOCR
 - **Object Tracking** -- IoU-based re-identification across video frames
 - **Analytics Dashboard** -- Compliance rate, violation history, session charts
 - **Video Support** -- Process MP4, AVI, MOV files frame by frame
 - **Zero Database** -- All data stored in server memory, no setup required
+- **CPU Inference** -- ONNX models for lightweight CPU deployment
 
 ## How It Works
 
@@ -41,40 +41,33 @@ Open http://localhost:8501 in your browser.
 
 ```
 RideSafe_AI/
-├── app.py                      # Streamlit application (entry point)
-├── config/
-│   ├── inference.yaml          # Model paths, thresholds, settings
-│   ├── violation_rules.yaml    # Fine amounts per violation type
-│   └── cameras.json            # Camera configurations
-├── src/
-│   ├── config.py               # Config loader
-│   └── inference/
-│       ├── detector.py         # YOLO model wrappers
-│       ├── tracker.py          # IoU-based object tracker
-│       ├── helmet_violation.py # Helmet violation logic
-│       ├── redlight_violation.py
-│       ├── wrong_side_violation.py
-│       ├── ocr.py              # PaddleOCR license plate reader
-│       ├── evidence.py         # Evidence crop generation
-│       └── violation_engine.py # Master inference pipeline
-├── src/models/deployment/      # ONNX models (~11.7MB each)
-│   ├── helmet/helmet_detector.onnx
-│   ├── plate/plate_detector.onnx
-│   └── traffic_light/traffic_light_detector.onnx
-├── scripts/                    # Training and export utilities
-├── requirements.txt
-└── README.md
+├ app.py                      # Streamlit application (entry point)
+├ config/
+│   ├ inference.yaml          # Model paths, thresholds, settings
+│   ├ violation_rules.yaml    # Fine amounts per violation type
+│   └ cameras.json            # Camera configurations
+├ src/
+│   ├ config.py               # Config loader
+│   └ inference/
+│       ├ detector.py         # YOLO helmet detector
+│       ├ tracker.py          # IoU-based object tracker
+│       ├ helmet_violation.py # Helmet violation logic
+│       ├ evidence.py         # Evidence crop generation
+│       └ violation_engine.py # Master inference pipeline
+├ src/models/deployment/      # ONNX model (~12MB)
+│   └ helmet/helmet_detector.onnx
+├ scripts/                    # Training and export utilities
+├ requirements.txt
+└ README.md
 ```
 
-## Models
+## Model
 
-| Model | Classes | mAP50 | Size |
-|-------|---------|-------|------|
-| Helmet Detector | With Helmet, Without Helmet, Licence | 0.855 | 11.7MB |
-| Plate Detector | License Plate (pre-trained) | -- | 11.7MB |
-| Traffic Light | Red, Yellow, Green, Unknown, Not Traffic Light | 0.993 | 11.7MB |
+| Model | Classes | Size |
+|-------|---------|------|
+| Helmet Detector | With Helmet, Without Helmet | ~12MB |
 
-All models exported to ONNX opset 13 for CPU inference.
+Exported to ONNX opset 13 for CPU inference.
 
 ## Configuration
 
@@ -83,18 +76,15 @@ Edit `config/inference.yaml`:
 ```yaml
 confidence_threshold: 0.45   # Detection confidence (0.05-0.95)
 image_size: 640              # YOLO input resolution
-device: auto                 # auto, cpu, cuda
+device: cpu                  # cpu (deployment)
 save_evidence: false         # Disable disk I/O for lightweight mode
 ```
 
 ## Training
 
 ```bash
-# Prepare datasets
-python scripts/prepare_datasets.py
-
-# Train models
-python scripts/train.py helmet datasets/helmet_data/data.yaml 100 16 nano
+# Train helmet detector (yolov8s, 100 epochs, GPU)
+python scripts/train.py datasets/helmet/data_helmet_only.yaml 100 16 s
 
 # Export to ONNX
 python scripts/export_models.py
@@ -104,7 +94,6 @@ python scripts/export_models.py
 
 - **UI**: Streamlit
 - **Models**: YOLOv8 (Ultralytics), ONNX Runtime
-- **OCR**: PaddleOCR + PaddlePaddle
 - **Backend**: Python, OpenCV, NumPy
 
 ## License

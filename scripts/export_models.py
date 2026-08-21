@@ -31,38 +31,12 @@ def export_model(source_path: str, output_path: str, imgsz: int = 640):
     return True
 
 
-def export_all_models():
-    training_dir = Path("src/models/training")
-    deployment_dir = Path("src/models/deployment")
-
-    model_map = {
-        "helmet": {
-            "source": training_dir / "helmet" / "best.pt",
-            "dest": deployment_dir / "helmet" / "helmet_detector.onnx",
-        },
-        "plate": {
-            "source": training_dir / "numberplate" / "best.pt",
-            "dest": deployment_dir / "plate" / "plate_detector.onnx",
-        },
-        "traffic_light": {
-            "source": training_dir / "traffic_light" / "best.pt",
-            "dest": deployment_dir / "traffic_light" / "traffic_light_detector.onnx",
-        },
-    }
-
-    for name, paths in model_map.items():
-        print(f"\n--- Exporting {name} model ---")
-        source = str(paths["source"])
-        dest = str(paths["dest"])
-        export_model(source, dest)
-
-    print("\nAll models exported.")
-
-
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         source = sys.argv[1]
         dest = sys.argv[2] if len(sys.argv) > 2 else source.replace(".pt", ".onnx")
-        export_model(source, dest)
     else:
-        export_all_models()
+        source = "src/models/training/helmet/best.pt"
+        dest = "src/models/deployment/helmet/helmet_detector.onnx"
+
+    export_model(source, dest)

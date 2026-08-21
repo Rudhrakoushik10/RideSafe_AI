@@ -14,7 +14,7 @@ except ImportError:
 
 from ultralytics import YOLO
 
-from src.config import get_model_path, get_device, get_inference_settings, load_config
+from src.config import get_model_path, get_inference_settings, load_config
 
 
 class Detector:
@@ -80,62 +80,31 @@ class Detector:
         return detections
 
 
-class MotorcycleDetector(Detector):
-    MOTORCYCLE_CLASS_IDS = [3, 4]  # COCO: motorcycle=3, bicycle=4
-
-    def __init__(self, config: dict = None):
-        super().__init__(model_type="helmet", config=config)
-
-    def detect_motorcycles(self, frame: np.ndarray) -> list:
-        all_detections = self.detect(frame)
-        return [d for d in all_detections if d["class_id"] in self.MOTORCYCLE_CLASS_IDS]
-
-
 class HelmetDetector(Detector):
-    TWO_WHEELER_CLASSES = {"with helmet", "without helmet", "helmet", "no helmet", "with_helmet", "without_helmet", "helmet_on"}
+    VALID_CLASSES = {"with helmet", "without helmet", "helmet", "no helmet", "with_helmet", "without_helmet"}
 
     def __init__(self, config: dict = None):
         super().__init__(model_type="helmet", config=config)
 
     def detect_helmets(self, frame: np.ndarray) -> list:
         all_detections = self.detect(frame)
-        return self._filter_two_wheeler_detections(all_detections, frame)
+        return self._filter_detections(all_detections, frame)
 
-    def _filter_two_wheeler_detections(self, detections: list, frame: np.ndarray) -> list:
+    def _filter_detections(self, detections: list, frame: np.ndarray) -> list:
         h, w = frame.shape[:2]
         frame_area = h * w
         filtered = []
         for det in detections:
             class_name = det.get("class_name", "").lower()
-            if class_name == "licence":
-                continue
-            if class_name not in self.TWO_WHEELER_CLASSES:
+            if class_name not in self.VALID_CLASSES:
                 continue
             x1, y1, x2, y2 = det["bbox"]
-            det_w = x2 - x1
-            det_h = y2 - y1
-            det_area = det_w * det_h
+            det_area = (x2 - x1) * (y2 - y1)
             if det_area < frame_area * 0.001:
                 continue
             if det_area > frame_area * 0.5:
                 continue
-            if det_w > det_h * 1.5:
+            if (x2 - x1) > (y2 - y1) * 1.5:
                 continue
             filtered.append(det)
         return filtered
-
-
-class PlateDetector(Detector):
-    def __init__(self, config: dict = None):
-        super().__init__(model_type="plate", config=config)
-
-    def detect_plates(self, frame: np.ndarray) -> list:
-        return self.detect(frame)
-
-
-class TrafficLightDetector(Detector):
-    def __init__(self, config: dict = None):
-        super().__init__(model_type="traffic_light", config=config)
-
-    def detect_traffic_lights(self, frame: np.ndarray) -> list:
-        return self.detect(frame)

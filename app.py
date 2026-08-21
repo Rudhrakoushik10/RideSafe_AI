@@ -143,9 +143,8 @@ def main():
         st.sidebar.info("No scans yet.")
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("Helmet: YOLOv8 (mAP50: 0.855)")
-    st.sidebar.caption("Plate: YOLOv8 (pre-trained)")
-    st.sidebar.caption("Traffic Light: YOLOv8 (mAP50: 0.993)")
+    st.sidebar.caption("Model: YOLOv8 Helmet Detector")
+    st.sidebar.caption("ONNX CPU Inference")
 
     tab_scan, tab_history = st.tabs(["Scan", "Analytics"])
 
