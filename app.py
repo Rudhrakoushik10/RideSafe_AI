@@ -180,16 +180,7 @@ def run_detection_on_frame(engine, frame, conf_threshold):
     return violations, compliant
 
 
-def _render_traffic_light(size="large"):
-    if size == "large":
-        return """
-        <div class="traffic-light-icon">
-            <div class="light light-red"></div>
-            <div class="light light-amber"></div>
-            <div class="light light-green"></div>
-        </div>
-        """
-    return '<span style="font-size:1.2rem;">&#128678;</span>'
+TRAFFIC_LIGHT_HTML = """<div class="traffic-light-icon"><div class="light light-red"></div><div class="light light-amber"></div><div class="light light-green"></div></div>"""
 
 
 def main():
@@ -200,16 +191,8 @@ def main():
 
     engine = st.session_state.engine
 
-    st.markdown(f"""
-    <div class="traffic-header">
-        {_render_traffic_light("large")}
-        <div class="header-text">
-            <h1>Ride<span>Safe</span> AI</h1>
-            <p>Two-wheeler helmet violation detection powered by YOLOv8</p>
-            <span class="tag">Real-time Analysis</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    header_html = f"""<div class="traffic-header">{TRAFFIC_LIGHT_HTML}<div class="header-text"><h1>Ride<span>Safe</span> AI</h1><p>Two-wheeler helmet violation detection powered by YOLOv8</p><span class="tag">Real-time Analysis</span></div></div>"""
+    st.markdown(header_html, unsafe_allow_html=True)
 
     with st.sidebar:
         st.markdown(f"""
